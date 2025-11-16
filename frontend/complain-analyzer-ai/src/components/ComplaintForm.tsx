@@ -26,7 +26,7 @@ import { complaintService } from "../services/api";
 type FormData = {
   title: string;
   description: string;
-  department: string;
+  department?: string;
   priority: string;
   contactInfo: string;
   userType: string;
@@ -42,68 +42,6 @@ type FormData = {
     sentimentScore?: number;
     keywords?: string[];
   };
-};
-
-// Domain-specific configurations
-const domainConfigs = {
-  healthcare: {
-    categories: [
-      "Patient Care",
-      "Billing",
-      "Appointment Scheduling",
-      "Medical Staff",
-      "Facilities",
-      "Medical Records",
-    ],
-    departments: [
-      "Emergency Room",
-      "General Practice",
-      "Cardiology",
-      "Pediatrics",
-      "Radiology",
-      "Pharmacy",
-    ],
-  },
-  business: {
-    categories: [
-      "Billing",
-      "Customer Service",
-      "Product Quality",
-      "Shipping",
-      "Account Issues",
-      "Website Problems",
-    ],
-    departments: [
-      "Billing",
-      "Customer Support",
-      "Sales",
-      "Technical Support",
-      "Management",
-      "Operations",
-    ],
-  },
-  education: {
-    categories: [
-      "Academic",
-      "Facilities",
-      "Staff Related",
-      "Hygiene & Sanitation",
-      "Security",
-      "Other",
-    ],
-    departments: [
-      "Academic Office",
-      "Facilities Management",
-      "IT Department",
-      "Student Affairs",
-      "Security",
-      "Administration",
-    ],
-  },
-  default: {
-    categories: ["General", "Technical", "Billing", "Other"],
-    departments: ["General Support", "Technical Support", "Billing", "Other"],
-  },
 };
 
 const priorities = ["Low", "Medium", "High"];
@@ -122,7 +60,6 @@ export function ComplaintForm() {
   const [formData, setFormData] = useState<FormData>({
     title: "",
     description: "",
-    department: "",
     priority: "medium",
     contactInfo: "",
     userType: "student",
@@ -156,19 +93,19 @@ export function ComplaintForm() {
     setIsAnalyzing(true);
     try {
       const analysis = await analyzeComplaint(formData.description);
-      
+
       setFormData(prev => ({
         ...prev,
         ...analysis,
         aiAnalysis: analysis.aiAnalysis
       }));
-      
+
       toast.success('Complaint analyzed successfully!');
     } catch (error: any) {
       console.error('Error analyzing complaint:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to analyze complaint. Please try again.';
       toast.error(`Error: ${errorMessage}`);
-      
+
       // Log detailed error information
       if (error.response) {
         console.error('Error response data:', error.response.data);
@@ -186,9 +123,9 @@ export function ComplaintForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate required fields
-    if (!formData.title || !formData.description || !formData.department || !formData.contactInfo) {
+    if (!formData.title || !formData.description || !formData.contactInfo) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -228,7 +165,6 @@ export function ComplaintForm() {
         userType: formData.userType || 'Student',
         domain: formData.domain || 'default',
         status: 'pending',
-        department: formData.department,
         priority: formData.priority || 'medium',
         category: formData.category || 'General',
         type: formData.type || 'General',
@@ -237,24 +173,23 @@ export function ComplaintForm() {
       };
 
       console.log('Submitting complaint:', submissionData);
-      
+
       // Use the complaintService to submit the complaint
       const response = await complaintService.createComplaint(submissionData);
       console.log('Complaint submission response:', response);
-      
+
       if (response && (response.id || response._id || (response as any).id)) {
         toast.success('Complaint submitted successfully!');
         setIsSuccess(true);
         setFormData({
           title: '',
           description: '',
-          department: '',
           priority: 'medium',
           contactInfo: '',
           userType: 'student',
           domain: window.location.hostname,
         });
-        
+
         // Redirect to dashboard/complaints list after a short delay
         setTimeout(() => {
           navigate('/dashboard');
@@ -263,17 +198,17 @@ export function ComplaintForm() {
         console.error('Invalid response from server:', response);
         throw new Error('Invalid response from server - no ID received');
       }
-      
+
       return response;
     } catch (error: any) {
       console.error("Error submitting complaint:", error);
-      
+
       let errorMessage = 'Failed to submit complaint.';
-      
+
       // Handle network errors
       if (error.isNetworkError || error.message?.includes('Network Error') || error.message?.includes('Unable to connect')) {
         errorMessage = "Network Error: Unable to connect to the backend server. Please ensure the backend is running on http://localhost:5001";
-      } 
+      }
       // Handle Axios errors
       else if (error.response) {
         const status = error.response.status;
@@ -295,7 +230,7 @@ export function ComplaintForm() {
       else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       console.error("Error details:", {
         name: error.name,
         message: error.message,
@@ -303,7 +238,7 @@ export function ComplaintForm() {
         status: error.response?.status,
         isNetworkError: error.isNetworkError
       });
-      
+
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -331,150 +266,149 @@ export function ComplaintForm() {
     <div className="bg-gray-100 p-4 m-2 rounded-[15px]">
 
 
-    <Card className="w-full max-w-3xl mx-auto border-2 border-black rounded-2xl overflow-hidden">
-      <CardHeader className="bg-white p-6 ">
-        <CardTitle className="text-2xl font-bold">File a Complaint</CardTitle>
-        <CardDescription className="text-gray-600">
-          Please fill out the form below to submit your complaint or concern.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-4 bg-gray-100 p-2 rounded-[10px]">
-            <div className="space-y-2 bg-gray-300 p-2 rounded-[10px]">
-              <Label htmlFor="title">Complaint Title *</Label>
-              <Input
-                id="title"
-                placeholder="Brief title of your complaint"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                required
-              />
-            </div>
+      <Card className="w-full max-w-3xl mx-auto border-2 border-black rounded-2xl overflow-hidden">
+        <CardHeader className="bg-white p-6 ">
+          <CardTitle className="text-2xl font-bold">File a Complaint</CardTitle>
+          <CardDescription className="text-gray-600">
+            Please fill out the form below to submit your complaint or concern.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid gap-4 bg-gray-100 p-2 rounded-[10px]">
+              <div className="space-y-2 bg-gray-300 p-2 rounded-[10px]">
+                <Label htmlFor="title">Complaint Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="Brief title of your complaint"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  required
+                />
+              </div>
 
-            <div className="space-y-2 bg-gray-300 p-2 rounded-[10px]">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="description">Complaint Details *</Label>
+              <div className="space-y-2 bg-gray-300 p-2 rounded-[10px]">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="description">Complaint Details *</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || !formData.description}
+                    className="text-sm"
+                  >
+                    {isAnalyzing ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-1" />
+                    )}
+                    Analyze with AI
+                  </Button>
+                </div>
+                <Textarea
+                  id="description"
+                  placeholder="Please describe your complaint in detail..."
+                  className="min-h-[120px] border-2 border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary"
+                  value={formData.description}
+                  onChange={(e) =>
+                    handleInputChange("description", e.target.value)
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2 bg-gray-300 p-3 rounded-[10px]">
+                <Label htmlFor="userType">You are *</Label>
+                <Select
+                  value={formData.userType}
+                  onValueChange={(value) => handleSelectChange(value, "userType")}
+                >
+                  <SelectTrigger className=" bg-white border-2 border-gray-200 text-gray-600 focus:ring-1 focus:ring-primary focus:border-primary">
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userTypes.map((type) => (
+                      <SelectItem key={type} value={type.toLowerCase()}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 bg-gray-300 p-3 rounded-[10px]">
+                <Label htmlFor="contactInfo">Contact Information *</Label>
+                <Input
+                  id="contactInfo"
+                  type="email"
+                  placeholder="Your email or phone number"
+                  value={formData.contactInfo}
+                  onChange={(e) =>
+                    handleInputChange("contactInfo", e.target.value)
+                  }
+                  className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-between ">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setFormData({
+                      title: "Network connectivity issues in the library",
+                      description:
+                        "I've been experiencing frequent disconnections from the WiFi in the library, especially in the second floor study area. This has been happening for the past 3 days during peak hours.",
+                      priority: "high",
+                      contactInfo: "john.doe@example.com",
+                      userType: "student",
+                      domain: window.location.hostname,
+                      status: 'pending'
+                    });
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Fill Sample
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || !formData.description}
-                  className="text-sm"
+                  className="w-full sm:w-auto"
                 >
                   {isAnalyzing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-300" />
                   ) : (
-                    <Sparkles className="h-4 w-4 mr-1" />
+                    <Sparkles className="mr-2 h-4 w-4 text-blue-300" />
                   )}
                   Analyze with AI
                 </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || isAnalyzing}
+                  className="w-full sm:w-auto bg-blue-400 hover:bg-blue-600 text-white"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Submit Complaint
+                    </>
+                  )}
+                </Button>
               </div>
-              <Textarea
-                id="description"
-                placeholder="Please describe your complaint in detail..."
-                className="min-h-[120px] border-2 border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary"
-                value={formData.description}
-                onChange={(e) =>
-                  handleInputChange("description", e.target.value)
-                }
-                required
-              />
             </div>
-
-            <div className="space-y-2 bg-gray-300 p-3 rounded-[10px]">
-              <Label htmlFor="userType">You are *</Label>
-              <Select
-                value={formData.userType}
-                onValueChange={(value) => handleSelectChange(value, "userType")}
-              >
-                <SelectTrigger className=" bg-white border-2 border-gray-200 text-gray-600 focus:ring-1 focus:ring-primary focus:border-primary">
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userTypes.map((type) => (
-                    <SelectItem key={type} value={type.toLowerCase()}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2 bg-gray-300 p-3 rounded-[10px]">
-              <Label htmlFor="contactInfo">Contact Information *</Label>
-              <Input
-                id="contactInfo"
-                type="email"
-                placeholder="Your email or phone number"
-                value={formData.contactInfo}
-                onChange={(e) =>
-                  handleInputChange("contactInfo", e.target.value)
-                }
-                className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                required
-              />
-            </div>
-
-            <div className="flex justify-between ">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setFormData({
-                    title: "Network connectivity issues in the library",
-                    description:
-                      "I've been experiencing frequent disconnections from the WiFi in the library, especially in the second floor study area. This has been happening for the past 3 days during peak hours.",
-                    department: "it",
-                    priority: "high",
-                    contactInfo: "john.doe@example.com",
-                    userType: "student",
-                    domain: window.location.hostname,
-                    status: 'pending'
-                  });
-                }}
-                className="w-full sm:w-auto"
-              >
-                Fill Sample
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleAnalyze}
-                disabled={isAnalyzing || !formData.description}
-                className="w-full sm:w-auto"
-              >
-                {isAnalyzing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-300" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4 text-blue-300" />
-                )}
-                Analyze with AI
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting || isAnalyzing}
-                className="w-full sm:w-auto bg-blue-400 hover:bg-blue-600 text-white"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit Complaint
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -124,6 +124,29 @@ def get_complaints():
     except FileNotFoundError:
         return jsonify({'success': False, 'data': []}), 200
 
+@app.route('/api/complaints/<id>', methods=['DELETE'])
+def delete_complaint(id):
+    try:
+        with open(COMPLAINTS_FILE, 'r') as f:
+            complaints = json.load(f)
+        
+        # Find and remove the complaint with the given ID
+        original_length = len(complaints)
+        complaints = [c for c in complaints if c.get('id') != id]
+        
+        if len(complaints) == original_length:
+            return jsonify({'error': 'Complaint not found'}), 404
+        
+        # Save the updated complaints list
+        with open(COMPLAINTS_FILE, 'w') as f:
+            json.dump(complaints, f, indent=2)
+        
+        return jsonify({'message': 'Complaint deleted successfully'}), 200
+    except FileNotFoundError:
+        return jsonify({'error': 'Complaints file not found'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
     try:

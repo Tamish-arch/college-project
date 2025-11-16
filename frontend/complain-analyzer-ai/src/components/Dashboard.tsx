@@ -6,7 +6,7 @@ import { AlertTriangle, Clock, CheckCircle, TrendingUp, Loader2, RefreshCw } fro
 import { getCurrentDomain } from "./DomainConfig";
 import { toast } from "sonner";
 import styles from "../styles/scrollbar.module.css";
-import { Complaint, AnalysisResult } from '../services/api';
+import { Complaint, AnalysisResult, complaintService } from '../services/api';
 
 interface ComplaintWithAnalysis {
   id: string;
@@ -44,23 +44,29 @@ export function Dashboard({ complaints, isLoading, isRefreshing, onRefresh, setC
     critical: complaints.filter(c => c.analysis?.priority === 'High' || c.priority === 'High').length,
   };
 
-  // Commented out for now as it's not used in the current implementation
-  // const deleteComplaint = async (id: string) => {
-  //   try {
-  //     await fetch(`/api/complaints/${id}`, {
-  //       method: 'DELETE',
-  //     });
-  //     toast.success('Complaint deleted successfully');
-  //     onRefresh();
-  //   } catch (error) {
-  //     console.error('Error deleting complaint:', error);
-  //     toast.error('Failed to delete complaint');
-  //   }
-  // };
-  // Get recent complaints (last 5)
+
+  const deleteComplaint = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this complaint?')) {
+      return;
+    }
+
+    try {
+      console.log('Attempting to delete complaint with ID:', id);
+      await complaintService.deleteComplaint(id);
+      toast.success('Complaint deleted successfully');
+      onRefresh();
+    } catch (error) {
+      console.error('Error deleting complaint:', error);
+      if (error instanceof Error) {
+        toast.error(`Failed to delete complaint: ${error.message}`);
+      } else {
+        toast.error('Failed to delete complaint: Unknown error');
+      }
+    }
+  };
+  // Get all complaints sorted by latest first
   const recentComplaints = complaints
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const getSeverityColor = (severity: string) => {
     const severityLower = severity?.toLowerCase();
@@ -226,15 +232,15 @@ export function Dashboard({ complaints, isLoading, isRefreshing, onRefresh, setC
                         )}
                       </div>
 
+
                       {(complaint.aiAnalyzed || complaint.analysis) && (
                         <Badge variant="secondary" className="ml-2 bg-green-100 text-green-800 hover:bg-green-100">
                           AI Analyzed
                         </Badge>
                       )}
                     </div>
-
-                    <div>
-                      {/* <Button onClick={() => deleteComplaint(complaint.id)}>Delete</Button> */}
+                    <div className="flex items-center justify-end gap-2 group-hover:opacity-100 opacity-0 transition-all duration-200">
+                      <button className="bg-red-500 text-white px-2 py-[1px] rounded hover:bg-red-600" onClick={() => deleteComplaint(complaint.id)}>Delete</button>
                     </div>
 
                     <div className="pt-2 border-t border-border/50 mt-2">
